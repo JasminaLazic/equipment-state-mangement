@@ -45,9 +45,17 @@
               "target": "Package",
               "version": "[7.0.20, )"
             },
+            "Microsoft.NET.Test.Sdk": {
+              "target": "Package",
+              "version": "[17.11.1, )"
+            },
             "NUnit": {
               "target": "Package",
               "version": "[3.14.0, )"
+            },
+            "NUnit3TestAdapter": {
+              "target": "Package",
+              "version": "[4.6.0, )"
             },
             "Swashbuckle.AspNetCore": {
               "target": "Package",
