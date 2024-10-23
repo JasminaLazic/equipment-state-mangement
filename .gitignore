@@ -1,0 +1,10 @@
+
+.vs/
+.vscode/
+.vscode/*
+
+bin/
+obj/
+out/
+
+
