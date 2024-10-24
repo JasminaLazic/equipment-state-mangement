@@ -2,14 +2,18 @@
 using Microsoft.Data.Sqlite;
 
 namespace EquipmentStateManagement.Services
-{
-    public class SQLiteService
     {
+    public interface ISQLiteService
+        {
+        Task InsertEquipmentHistory(Equipment equipment);
+        }
+    public class SQLiteService : ISQLiteService, IDisposable
+        {
         private readonly SqliteConnection _connection;
 
-        public SQLiteService(string connectionString)
-        {
-            _connection = new SqliteConnection(connectionString);
+        public SQLiteService(SqliteConnection connection)
+            {
+            _connection = connection;
             _connection.Open();
 
             var command = _connection.CreateCommand();
@@ -22,10 +26,10 @@ namespace EquipmentStateManagement.Services
                     Timestamp TEXT NOT NULL
                 )";
             command.ExecuteNonQuery();
-        }
+            }
 
         public async Task InsertEquipmentHistory(Equipment equipment)
-        {
+            {
             var timestamp = DateTime.UtcNow.ToString("o");
 
             var command = _connection.CreateCommand();
@@ -37,11 +41,11 @@ namespace EquipmentStateManagement.Services
             command.Parameters.AddWithValue("@State", equipment.State);
             command.Parameters.AddWithValue("@Timestamp", timestamp);
             await command.ExecuteNonQueryAsync();
-        }
+            }
 
         public void Dispose()
-        {
+            {
             _connection?.Dispose();
+            }
         }
     }
-}

@@ -3,9 +3,7 @@ using EquipmentStateManagement.Models;
 using EquipmentStateManagement.Services;
 using Moq;
 using NUnit.Framework;
-using StackExchange.Redis;
 using System.Net;
-using System.Reflection;
 using WebSocketSharp;
 
 namespace EquipmentStateManagement.Tests
@@ -17,29 +15,35 @@ namespace EquipmentStateManagement.Tests
         private string _receivedMessage;
         private HttpListener _mockWebSocketServer;
         private EquipmentController _equipmentController;
-        private Mock<IConnectionMultiplexer> _mockRedisConnection;
-        private Mock<IDatabase> _mockRedisDatabase;
-        private RedisService _redisService;
-        private SQLiteService _sqliteService;
+        private Mock<IRedisService> _mockRedisService;
+        private Mock<ISQLiteService> _mockSQLiteService;
+        private Mock<IEquipmentService> _mockEquipmentService;
 
         [SetUp]
         public void Setup()
             {
-            _mockRedisConnection = new Mock<IConnectionMultiplexer>();
-            _mockRedisDatabase = new Mock<IDatabase>();
-            _mockRedisConnection.Setup(x => x.GetDatabase(It.IsAny<int>(), It.IsAny<object>()))
-                                .Returns(_mockRedisDatabase.Object);
-            _mockRedisDatabase.Setup(db => db.StringSet(It.IsAny<RedisKey>(), It.IsAny<RedisValue>(), null, When.Always, CommandFlags.None))
-                              .Returns(true);
-            _mockRedisDatabase.Setup(db => db.StringGet(It.IsAny<RedisKey>(), It.IsAny<CommandFlags>()))
-                              .Returns((RedisValue)"yellow");
+            _mockRedisService = new Mock<IRedisService>();
+            _mockRedisService.Setup(x => x.SetEquipmentState(It.IsAny<string>(), It.IsAny<string>()))
+                             .Verifiable();
+            _mockRedisService.Setup(x => x.GetEquipmentState(It.IsAny<string>()))
+                             .Returns("yellow");
 
-            _redisService = new RedisService(_mockRedisConnection.Object);
-            _sqliteService = new SQLiteService("DataSource=:memory:");
-            _equipmentController = new EquipmentController(_redisService, _sqliteService);
+            _mockSQLiteService = new Mock<ISQLiteService>();
+            _mockSQLiteService.Setup(x => x.InsertEquipmentHistory(It.IsAny<Equipment>()))
+                              .Returns(Task.CompletedTask);
+
+            _mockEquipmentService = new Mock<IEquipmentService>();
+            _mockEquipmentService.Setup(x => x.GetEquipmentById(It.IsAny<Guid>()))
+                                 .Returns(new Equipment { Id = Guid.NewGuid(), Name = "Equipment 1", State = "green" });
+
+            _equipmentController = new EquipmentController(
+                _mockRedisService.Object,
+                _mockSQLiteService.Object,
+                new WebSocketHandler(),
+                _mockEquipmentService.Object
+            );
 
             StartMockWebSocketServer();
-
             _webSocketClient = new WebSocket("ws://localhost:5000/ws");
 
             _webSocketClient.OnMessage += (sender, e) =>
@@ -57,11 +61,6 @@ namespace EquipmentStateManagement.Tests
 
             var equipmentId = Guid.NewGuid();
             var newState = "yellow";
-
-            var equipmentList = new List<Equipment> { new Equipment { Id = equipmentId, Name = "Equipment 1", State = "green" } };
-            typeof(EquipmentController)
-                .GetField("_equipment", BindingFlags.NonPublic | BindingFlags.Static)
-                .SetValue(null, equipmentList);
 
             await _equipmentController.UpdateState(equipmentId, newState);
 
@@ -85,7 +84,7 @@ namespace EquipmentStateManagement.Tests
                     var webSocketContext = await context.AcceptWebSocketAsync(null);
                     var webSocket = webSocketContext.WebSocket;
 
-                    await WebSocketHandler.HandleWebSocketAsync(webSocket);
+                    await new WebSocketHandler().HandleWebSocketAsync(webSocket);
                     }
             });
             }

@@ -3,11 +3,17 @@ using System.Text;
 
 namespace EquipmentStateManagement.Services
     {
-    public static class WebSocketHandler
+    public interface IWebSocketHandler
         {
-        private static List<WebSocket> _sockets = new List<WebSocket>();
+        Task HandleWebSocketAsync(WebSocket webSocket);
+        Task BroadcastMessageAsync(string message);
+        }
 
-        public static async Task HandleWebSocketAsync(WebSocket webSocket)
+    public class WebSocketHandler : IWebSocketHandler
+        {
+        private static readonly List<WebSocket> _sockets = new List<WebSocket>();
+
+        public async Task HandleWebSocketAsync(WebSocket webSocket)
             {
             _sockets.Add(webSocket);
             var buffer = new byte[1024 * 4];
@@ -16,9 +22,7 @@ namespace EquipmentStateManagement.Services
             while (!result.CloseStatus.HasValue)
                 {
                 var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
-
                 await BroadcastMessageAsync(message);
-
                 result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
                 }
 
@@ -26,7 +30,7 @@ namespace EquipmentStateManagement.Services
             _sockets.Remove(webSocket);
             }
 
-        public static async Task BroadcastMessageAsync(string message)
+        public async Task BroadcastMessageAsync(string message)
             {
             var buffer = Encoding.UTF8.GetBytes(message);
             foreach (var socket in _sockets)
@@ -35,15 +39,6 @@ namespace EquipmentStateManagement.Services
                     {
                     await socket.SendAsync(new ArraySegment<byte>(buffer, 0, buffer.Length), WebSocketMessageType.Text, true, CancellationToken.None);
                     }
-                }
-            }
-
-        public static async Task SendMessageAsync(WebSocket socket, string message)
-            {
-            var buffer = Encoding.UTF8.GetBytes(message);
-            if (socket.State == WebSocketState.Open)
-                {
-                await socket.SendAsync(new ArraySegment<byte>(buffer, 0, buffer.Length), WebSocketMessageType.Text, true, CancellationToken.None);
                 }
             }
         }
