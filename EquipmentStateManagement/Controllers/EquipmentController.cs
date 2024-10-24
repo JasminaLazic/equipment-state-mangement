@@ -3,19 +3,19 @@ using EquipmentStateManagement.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EquipmentStateManagement.Controllers
-    {
+{
     [ApiController]
     [Route("api/[controller]")]
     public class EquipmentController : ControllerBase
-        {
+    {
         private readonly RedisService _redisService;
         private readonly SQLiteService _sqliteService;
 
         public EquipmentController(RedisService redisService, SQLiteService sqliteService)
-            {
+        {
             _redisService = redisService;
             _sqliteService = sqliteService;
-            }
+        }
 
         private static List<Equipment> _equipment = new List<Equipment>
         {
@@ -25,13 +25,13 @@ namespace EquipmentStateManagement.Controllers
 
         [HttpGet]
         public IActionResult GetEquipment()
-            {
+        {
             return Ok(_equipment);
-            }
+        }
 
         [HttpPost("{id}/state")]
         public async Task<IActionResult> UpdateState(Guid id, [FromBody] string newState)
-            {
+        {
             var equipment = _equipment.FirstOrDefault(e => e.Id == id);
 
             if (equipment == null)
@@ -42,12 +42,14 @@ namespace EquipmentStateManagement.Controllers
             equipment.State = newState;
 
             await _sqliteService.InsertEquipmentHistory(equipment);
+            string message = $"{{\"id\":\"{equipment.Id}\", \"name\":\"{equipment.Name}\", \"state\":\"{newState}\"}}";
+            await WebSocketHandler.BroadcastMessageAsync(message);
 
             return Ok(new
-                {
+            {
                 message = "State updated",
                 updatedEquipment = equipment
-                });
-            }
+            });
         }
     }
+}
