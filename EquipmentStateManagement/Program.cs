@@ -1,4 +1,5 @@
 using EquipmentStateManagement.Services;
+using Microsoft.Data.Sqlite;
 using StackExchange.Redis;
 using SQLitePCL;
 
@@ -6,25 +7,29 @@ var builder = WebApplication.CreateBuilder(args);
 
 Batteries.Init();
 
-builder.Services.AddSingleton(sp => builder.Configuration.GetConnectionString("SQLiteConnection"));
+builder.Services.AddSingleton<SqliteConnection>(sp =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("SQLiteConnection");
+    return new SqliteConnection(connectionString);
+});
 
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 {
     var configuration = ConfigurationOptions.Parse("localhost:6379");
     return ConnectionMultiplexer.Connect(configuration);
 });
+builder.Services.AddSingleton<ISQLiteService, SQLiteService>();
+builder.Services.AddScoped<IRedisService, RedisService>();
+builder.Services.AddSingleton<IWebSocketHandler, WebSocketHandler>();
 
+builder.Services.AddScoped<IEquipmentService, EquipmentService>();
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddScoped<RedisService>();
-builder.Services.AddScoped<SQLiteService>();
-
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -32,9 +37,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
 app.UseAuthorization();
-
 app.UseWebSockets();
 
 app.Map("/ws", async context =>
@@ -42,7 +45,8 @@ app.Map("/ws", async context =>
     if (context.WebSockets.IsWebSocketRequest)
     {
         var webSocket = await context.WebSockets.AcceptWebSocketAsync();
-        await WebSocketHandler.HandleWebSocketAsync(webSocket);
+        var webSocketHandler = app.Services.GetRequiredService<IWebSocketHandler>();
+        await webSocketHandler.HandleWebSocketAsync(webSocket);
     }
     else
     {
