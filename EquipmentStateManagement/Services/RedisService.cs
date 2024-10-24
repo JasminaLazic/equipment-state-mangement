@@ -2,20 +2,26 @@ using StackExchange.Redis;
 
 namespace EquipmentStateManagement.Services
     {
-    public class RedisService
+    public interface IRedisService
+        {
+        void SetEquipmentState(string key, string state);
+        string GetEquipmentState(string key);
+        }
+
+    public class RedisService : IRedisService
         {
         private readonly IConnectionMultiplexer _redis;
+
         public RedisService(IConnectionMultiplexer redis)
             {
             _redis = redis;
             }
 
-        public virtual void SetEquipmentState(string key, string state)
+        public void SetEquipmentState(string key, string state)
             {
             var db = _redis.GetDatabase();
-            db.StringSet(key, state, null, When.Always, CommandFlags.None);
+            db.StringSet(key, state);
             }
-
 
         public string GetEquipmentState(string key)
             {

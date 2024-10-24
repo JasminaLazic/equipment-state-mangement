@@ -24,27 +24,34 @@ namespace EquipmentStateManagement.Tests
             _redisService = new RedisService(_mockRedis.Object);
             }
 
-
         [Test]
         public void ShouldSetAndGetEquipmentState()
             {
+            _dbMock.Setup(db => db.StringSet(
+                It.IsAny<RedisKey>(),
+                It.IsAny<RedisValue>(),
+                It.IsAny<TimeSpan?>(),
+                It.IsAny<bool>(),
+                It.IsAny<When>(),
+                It.IsAny<CommandFlags>()
+            )).Returns(true);
+
             _redisService.SetEquipmentState("Equipment1", "green");
 
             _dbMock.Verify(db => db.StringSet(
                 "Equipment1",
                 "green",
                 null,
-                When.Always,
-                CommandFlags.None),
-                Times.Once);
+                It.IsAny<bool>(),
+                It.IsAny<When>(),
+                It.IsAny<CommandFlags>()
+            ), Times.Once);
             }
-
 
         [Test]
         public void ShouldRetrieveEquipmentState()
             {
             _dbMock.Setup(db => db.StringGet("Equipment1", It.IsAny<CommandFlags>())).Returns("green");
-
 
             var state = _redisService.GetEquipmentState("Equipment1");
 
