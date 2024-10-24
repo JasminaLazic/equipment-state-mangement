@@ -1,22 +1,46 @@
-﻿using EquipmentStateManagement.Services;
+﻿using EquipmentStateManagement.Controllers;
+using EquipmentStateManagement.Models;
+using EquipmentStateManagement.Services;
+using Moq;
 using NUnit.Framework;
+using StackExchange.Redis;
 using System.Net;
-using System.Text;
+using System.Reflection;
+using WebSocketSharp;
 
 namespace EquipmentStateManagement.Tests
     {
     [TestFixture]
     public class WebSocketHandlerTests
         {
-        private WebSocketSharp.WebSocket _webSocketClient;
+        private WebSocket _webSocketClient;
         private string _receivedMessage;
         private HttpListener _mockWebSocketServer;
+        private EquipmentController _equipmentController;
+        private Mock<IConnectionMultiplexer> _mockRedisConnection;
+        private Mock<IDatabase> _mockRedisDatabase;
+        private RedisService _redisService;
+        private SQLiteService _sqliteService;
 
         [SetUp]
         public void Setup()
             {
+            _mockRedisConnection = new Mock<IConnectionMultiplexer>();
+            _mockRedisDatabase = new Mock<IDatabase>();
+            _mockRedisConnection.Setup(x => x.GetDatabase(It.IsAny<int>(), It.IsAny<object>()))
+                                .Returns(_mockRedisDatabase.Object);
+            _mockRedisDatabase.Setup(db => db.StringSet(It.IsAny<RedisKey>(), It.IsAny<RedisValue>(), null, When.Always, CommandFlags.None))
+                              .Returns(true);
+            _mockRedisDatabase.Setup(db => db.StringGet(It.IsAny<RedisKey>(), It.IsAny<CommandFlags>()))
+                              .Returns((RedisValue)"yellow");
+
+            _redisService = new RedisService(_mockRedisConnection.Object);
+            _sqliteService = new SQLiteService("DataSource=:memory:");
+            _equipmentController = new EquipmentController(_redisService, _sqliteService);
+
             StartMockWebSocketServer();
-            _webSocketClient = new WebSocketSharp.WebSocket("ws://localhost:5000/ws");
+
+            _webSocketClient = new WebSocket("ws://localhost:5000/ws");
 
             _webSocketClient.OnMessage += (sender, e) =>
             {
@@ -27,15 +51,19 @@ namespace EquipmentStateManagement.Tests
             }
 
         [Test]
-        public async Task WebSocketServer_ShouldBroadcastMessage_OnStateChange()
+        public async Task WebSocket_ShouldReceiveMessage_WhenEquipmentStateIsUpdated()
             {
             _receivedMessage = null;
 
+            var equipmentId = Guid.NewGuid();
             var newState = "yellow";
-            var equipmentId = "equipment-id";
-            string equipmentStateUpdateMessage = $"{{\"id\":\"{equipmentId}\", \"name\":\"Equipment 1\", \"state\":\"{newState}\"}}";
 
-            await SendMessageToWebSocketServer(equipmentStateUpdateMessage);
+            var equipmentList = new List<Equipment> { new Equipment { Id = equipmentId, Name = "Equipment 1", State = "green" } };
+            typeof(EquipmentController)
+                .GetField("_equipment", BindingFlags.NonPublic | BindingFlags.Static)
+                .SetValue(null, equipmentList);
+
+            await _equipmentController.UpdateState(equipmentId, newState);
 
             await WaitForWebSocketMessage(5000);
 
@@ -60,13 +88,6 @@ namespace EquipmentStateManagement.Tests
                     await WebSocketHandler.HandleWebSocketAsync(webSocket);
                     }
             });
-            }
-
-        private async Task SendMessageToWebSocketServer(string message)
-            {
-            var buffer = Encoding.UTF8.GetBytes(message);
-            _webSocketClient.Send(buffer);
-            await Task.Delay(100);
             }
 
         private async Task WaitForWebSocketMessage(int timeoutMs)
