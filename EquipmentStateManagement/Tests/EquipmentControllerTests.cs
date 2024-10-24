@@ -11,13 +11,15 @@ namespace EquipmentStateManagement.Tests
     public class EquipmentControllerTests
     {
         private EquipmentController _controller;
+        private Mock<RedisService> _mockRedisService;
         private Mock<SQLiteService> _mockSqliteService;
 
         [SetUp]
         public void Setup()
         {
+            _mockRedisService = new Mock<RedisService>(null);
             _mockSqliteService = new Mock<SQLiteService>("DataSource=:memory:");
-            _controller = new EquipmentController(_mockSqliteService.Object);
+            _controller = new EquipmentController(_mockRedisService.Object, _mockSqliteService.Object);
         }
 
         [Test]
@@ -40,7 +42,5 @@ namespace EquipmentStateManagement.Tests
             Assert.IsNotNull(resultValue);
             Assert.AreEqual("Equipment not found", resultValue.message);
         }
-
-
     }
 }
