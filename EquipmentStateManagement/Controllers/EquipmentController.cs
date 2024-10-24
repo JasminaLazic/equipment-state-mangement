@@ -8,10 +8,12 @@ namespace EquipmentStateManagement.Controllers
     [Route("api/[controller]")]
     public class EquipmentController : ControllerBase
         {
+        private readonly RedisService _redisService;
         private readonly SQLiteService _sqliteService;
 
-        public EquipmentController(SQLiteService sqliteService)
+        public EquipmentController(RedisService redisService, SQLiteService sqliteService)
             {
+            _redisService = redisService;
             _sqliteService = sqliteService;
             }
 
@@ -35,6 +37,8 @@ namespace EquipmentStateManagement.Controllers
             if (equipment == null)
                 return new NotFoundObjectResult(new { message = "Equipment not found" });
 
+            _redisService.SetEquipmentState(equipment.Id.ToString(), newState);
+
             equipment.State = newState;
 
             await _sqliteService.InsertEquipmentHistory(equipment);
@@ -45,7 +49,5 @@ namespace EquipmentStateManagement.Controllers
                 updatedEquipment = equipment
                 });
             }
-
-
         }
     }
