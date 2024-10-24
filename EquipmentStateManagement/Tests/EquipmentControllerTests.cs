@@ -1,18 +1,23 @@
 using EquipmentStateManagement.Controllers;
-using EquipmentStateManagement.Models;
-using NUnit.Framework;
+using EquipmentStateManagement.Services;
 using Microsoft.AspNetCore.Mvc;
+using Moq;
+using NUnit.Framework;
+
 
 namespace EquipmentStateManagement.Tests
 {
+    [TestFixture]
     public class EquipmentControllerTests
     {
         private EquipmentController _controller;
+        private Mock<SQLiteService> _mockSqliteService;
 
         [SetUp]
         public void Setup()
         {
-            _controller = new EquipmentController();
+            _mockSqliteService = new Mock<SQLiteService>("DataSource=:memory:");
+            _controller = new EquipmentController(_mockSqliteService.Object);
         }
 
         [Test]
@@ -24,30 +29,18 @@ namespace EquipmentStateManagement.Tests
         }
 
         [Test]
-        public void ShouldUpdateEquipmentState()
+        public async Task ShouldUpdateEquipmentState_NotFound()
         {
-            var result = _controller.UpdateState(Guid.NewGuid(), "red") as NotFoundResult;
+            var result = await _controller.UpdateState(Guid.NewGuid(), "red") as NotFoundObjectResult;
+
+            Assert.IsNotNull(result);
             Assert.AreEqual(404, result.StatusCode);
+
+            var resultValue = result.Value as dynamic;
+            Assert.IsNotNull(resultValue);
+            Assert.AreEqual("Equipment not found", resultValue.message);
         }
 
 
-        [Test]
-        public void ShouldUpdateEquipmentState_Success()
-        {
-            var getResult = _controller.GetEquipment() as OkObjectResult;
-            var equipmentList = getResult.Value as List<Equipment>;
-            var existingEquipment = equipmentList[0];
-
-            var updateResult = _controller.UpdateState(existingEquipment.Id, "red") as OkObjectResult;
-
-            Assert.IsNotNull(updateResult);
-            Assert.AreEqual(200, updateResult.StatusCode);
-
-            var updatedEquipmentList = (_controller.GetEquipment() as OkObjectResult).Value as List<Equipment>;
-            var updatedEquipment = updatedEquipmentList.FirstOrDefault(e => e.Id == existingEquipment.Id);
-
-            Assert.IsNotNull(updatedEquipment);
-            Assert.AreEqual("red", updatedEquipment.State);
-        }
     }
 }

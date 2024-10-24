@@ -3,6 +3,7 @@ using NUnit.Framework;
 
 namespace EquipmentStateManagement.Tests
     {
+    [TestFixture]
     public class EquipmentModelTests
         {
         [Test]
