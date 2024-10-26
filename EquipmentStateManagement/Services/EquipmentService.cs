@@ -1,16 +1,19 @@
 ﻿using EquipmentStateManagement.Models;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace EquipmentStateManagement.Services
     {
     public interface IEquipmentService
         {
-        List<Equipment> GetEquipmentList();
-        Equipment GetEquipmentById(Guid id);
-        void UpdateEquipmentState(Guid id, string newState);
+        Task<List<Equipment>> GetEquipmentListAsync();
+        Task<Equipment> GetEquipmentByIdAsync(Guid id);
+        Task UpdateEquipmentStateAsync(Guid id, string newState);
         }
+
     public class EquipmentService : IEquipmentService
         {
-
         private static readonly List<Equipment> _equipment;
 
         static EquipmentService()
@@ -22,13 +25,19 @@ namespace EquipmentStateManagement.Services
             };
             }
 
-        public List<Equipment> GetEquipmentList() => _equipment;
-
-        public Equipment GetEquipmentById(Guid id) => _equipment.FirstOrDefault(e => e.Id == id);
-
-        public void UpdateEquipmentState(Guid id, string newState)
+        public async Task<List<Equipment>> GetEquipmentListAsync()
             {
-            var equipment = GetEquipmentById(id);
+            return await Task.FromResult(_equipment);
+            }
+
+        public async Task<Equipment> GetEquipmentByIdAsync(Guid id)
+            {
+            return await Task.FromResult(_equipment.FirstOrDefault(e => e.Id == id));
+            }
+
+        public async Task UpdateEquipmentStateAsync(Guid id, string newState)
+            {
+            var equipment = await GetEquipmentByIdAsync(id);
             if (equipment != null)
                 {
                 equipment.State = newState;
