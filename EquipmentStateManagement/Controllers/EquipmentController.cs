@@ -24,23 +24,23 @@ namespace EquipmentStateManagement.Controllers
             _equipmentService = equipmentService;
             }
 
-        [HttpGet]
-        public IActionResult GetEquipment()
+        [HttpGet("/Equipment")]
+        public async Task<IActionResult> GetEquipment()
             {
-            var equipment = _equipmentService.GetEquipmentList();
+            var equipment = await _equipmentService.GetEquipmentListAsync();
             return Ok(equipment);
             }
 
-        [HttpPost("{id}/state")]
+        [HttpPut("{id}")]
         public async Task<IActionResult> UpdateState(Guid id, [FromBody] string newState)
             {
-            var equipment = _equipmentService.GetEquipmentById(id);
+            var equipment = await _equipmentService.GetEquipmentByIdAsync(id);
 
             if (equipment == null)
                 return NotFound(new { message = "Equipment not found" });
 
             _redisService.SetEquipmentState(equipment.Id.ToString(), newState);
-            _equipmentService.UpdateEquipmentState(id, newState);
+            _equipmentService.UpdateEquipmentStateAsync(id, newState);
 
             await _sqliteService.InsertEquipmentHistory(equipment);
 

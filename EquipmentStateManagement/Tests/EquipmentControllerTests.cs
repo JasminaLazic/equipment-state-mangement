@@ -26,12 +26,12 @@ namespace EquipmentStateManagement.Tests
             _mockWebSocketHandler = new Mock<IWebSocketHandler>();
             _mockEquipmentService = new Mock<IEquipmentService>();
 
-            _mockEquipmentService.Setup(s => s.GetEquipmentList())
-                .Returns(new List<Equipment>
-                {
-            new Equipment { Id = Guid.NewGuid(), Name = "Equipment 1", State = "green" },
-            new Equipment { Id = Guid.NewGuid(), Name = "Equipment 2", State = "yellow" }
-                });
+            _mockEquipmentService.Setup(s => s.GetEquipmentListAsync())
+                                 .ReturnsAsync(new List<Equipment>
+                                 {
+                             new Equipment { Id = Guid.NewGuid(), Name = "Equipment 1", State = "green" },
+                             new Equipment { Id = Guid.NewGuid(), Name = "Equipment 2", State = "yellow" }
+                                 });
 
             serviceCollection.AddSingleton(_mockRedisService.Object);
             serviceCollection.AddSingleton(_mockSqliteService.Object);
@@ -45,11 +45,11 @@ namespace EquipmentStateManagement.Tests
 
 
         [Test]
-        public void ShouldReturnEquipmentList()
+        public async Task ShouldReturnEquipmentListAsync()
             {
             var controller = _serviceProvider.GetService<EquipmentController>();
 
-            var result = controller.GetEquipment() as OkObjectResult;
+            var result = await controller.GetEquipment() as OkObjectResult;
 
             Assert.IsNotNull(result);
             Assert.AreEqual(200, result.StatusCode);
@@ -79,17 +79,19 @@ namespace EquipmentStateManagement.Tests
             {
             var existingEquipment = new Equipment { Id = Guid.NewGuid(), Name = "Equipment 1", State = "green" };
 
-            _mockEquipmentService.Setup(s => s.GetEquipmentById(existingEquipment.Id))
-                .Returns(existingEquipment);
+            _mockEquipmentService.Setup(s => s.GetEquipmentByIdAsync(existingEquipment.Id))
+                                 .ReturnsAsync(existingEquipment);
 
-            _mockRedisService.Setup(r => r.SetEquipmentState(It.IsAny<string>(), It.IsAny<string>())).Verifiable();
+            _mockRedisService.Setup(r => r.SetEquipmentState(It.IsAny<string>(), It.IsAny<string>()))
+                             .Verifiable();
 
             _mockSqliteService.Setup(s => s.InsertEquipmentHistory(It.IsAny<Equipment>()))
-                .Returns(Task.CompletedTask)
-                .Verifiable();
+                              .Returns(Task.CompletedTask)
+                              .Verifiable();
 
-            _mockEquipmentService.Setup(s => s.UpdateEquipmentState(existingEquipment.Id, It.IsAny<string>()))
-                .Callback<Guid, string>((id, newState) => existingEquipment.State = newState);
+            _mockEquipmentService.Setup(s => s.UpdateEquipmentStateAsync(existingEquipment.Id, It.IsAny<string>()))
+                                 .Returns(Task.CompletedTask)
+                                 .Callback<Guid, string>((id, newState) => existingEquipment.State = newState);
 
             var controller = _serviceProvider.GetService<EquipmentController>();
 
